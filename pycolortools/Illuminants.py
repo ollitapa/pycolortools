@@ -64,8 +64,24 @@ class Illuminants(object):
         for given wavelengths [nm]
         '''
         T_K = float(T_K)
-        return (2.0 * np.pi * self.h * self.c ** 2) / ((wavelen * 10 ** -9) ** 5) * (
-            1.0 / (np.exp((self.h * self.c) / (wavelen * 10 ** -9 * self.kb * T_K)) - 1.0))
+        return (2.0 * np.pi * self.h * self.c ** 2) /\
+            ((wavelen * 10 ** -9) ** 5) *\
+            (1.0 / (np.exp((self.h * self.c) /
+                           (wavelen * 10 ** -9 * self.kb * T_K)) - 1.0))
+
+    def blackbodySpectrum560(self, wavelen, T_K):
+        '''
+        Returns the spectrum of a black body at a temperature of T_K
+        for given wavelengths [nm]. Normalized to 1 at 560 nm.
+        '''
+        T_K = float(T_K)
+
+        le = (wavelen * 10 ** -9)**-5 * \
+            (np.exp(1.4388 * 10**-2 / ((wavelen * 10 ** -9) * T_K)) - 1)**-1
+
+        le560 = (560.0 * 10 ** -9)**-5 * \
+            (np.exp(1.4388 * 10**-2 / ((560.0 * 10 ** -9) * T_K)) - 1)**-1
+        return le / le560
 
     def illuminantA(self, wavelen):
         '''
@@ -74,16 +90,16 @@ class Illuminants(object):
         '''
         T_K = 2848.0
         return (100.0 * (560.0 / wavelen) ** 5 *
-                (np.exp((1.435e7) / (T_K * 560.0)) - 1.0) / (
-            np.exp((1.435e7) / (T_K * wavelen)) - 1.0)
-        )
+                (np.exp((1.435e7) / (T_K * 560.0)) - 1.0) /
+                (np.exp((1.435e7) / (T_K * wavelen)) - 1.0)
+                )
 
     def illuminantB(self, wavelen):
         '''
         B served as a representative of noon sunlight at T = 4874K
 
-        This is not the official standard illuminant B, but a 
-        illuminant D at 4874K, of which the B approximates. 
+        This is not the official standard illuminant B, but a
+        illuminant D at 4874K, of which the B approximates.
         '''
         return self.illuminantD(wavelen, 4874.0)
 
@@ -91,8 +107,8 @@ class Illuminants(object):
         '''
         C represented average day light with a CCT of 6774 K
 
-        This is not the official standard illuminant C, but a 
-        illuminant D at 6774K, of which the C approximates. 
+        This is not the official standard illuminant C, but a
+        illuminant D at 6774K, of which the C approximates.
         '''
         return self.illuminantD(wavelen, 6774.0)
 
@@ -148,7 +164,7 @@ class Illuminants(object):
 
     def illuminantE(self, wavelen):
         '''
-        Returns the spectrum of CIE Illuminant E. 
+        Returns the spectrum of CIE Illuminant E.
         Constant value 100 at all wavelengths.
 
 
@@ -165,3 +181,31 @@ class Illuminants(object):
         return griddata(self.illumF['wavelen'],
                         self.illumF['F{:{fill}2d}'.format(F, fill=0)],
                         wavelen)
+
+    def illuminantD_M(self, wavelen, T_K):
+        '''
+        Returns the spectral power distribution of CIE standard illuminant D
+        for given wavelengths and T_K proportionaly mixed with
+        blackbody spectrum.
+
+        Available for 4500K < T_K < 5500K
+
+        wavelen in nm
+
+        See, TM-30-15
+        '''
+        if not (T_K > 4500 and T_K < 5500):
+            raise RuntimeError(
+                'Illuminant D_M only available for 4500K < T_K < 5500K, not %d'
+                % T_K)
+
+        S_P = self.blackbodySpectrum560(wavelen, T_K)
+        print('----')
+        print(np.trapz(y=S_P, x=wavelen))
+        S_D = self.illuminantD(wavelen, T_K)
+        print(np.trapz(y=S_D, x=wavelen))
+        print('----')
+
+        S_M = (5500.0 - T_K) / 1000.0 * S_P + \
+              (1.0 - (5500.0 - T_K) / 1000.0) * S_D
+        return(S_M)
